@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../model/student.dart';
 
-// Widget that represents a single student item in the list
 class StudentItem extends StatelessWidget {
   final Student student;
 

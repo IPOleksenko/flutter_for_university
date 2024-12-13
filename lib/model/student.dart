@@ -1,12 +1,11 @@
 enum Department { finance, law, it, medical }
 enum Gender { male, female }
 
-// A class that stores information about a student
 class Student {
   final String firstName;
   final String lastName;
   final Department department;
-  final int grade;
+  final double grade;
   final Gender gender;
 
   Student({
@@ -18,8 +17,7 @@ class Student {
   });
 }
 
-// Icons associated with each department
-final Map<Department, String> departmentIcons = {
+const Map<Department, String> departmentIcons = {
   Department.finance: '💵',
   Department.law: '⚖️',
   Department.it: '💻',
