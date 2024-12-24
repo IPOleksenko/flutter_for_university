@@ -1,63 +1,60 @@
 import 'package:flutter/material.dart';
-import '../model/student.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DepartmentsScreen extends StatelessWidget {
-  final List<Student> students;
-
-  DepartmentsScreen({required this.students});
-
   @override
   Widget build(BuildContext context) {
-    final Map<Department, int> departmentCounts = {};
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('students').snapshots(),
+      builder: (ctx, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
 
-    for (var department in Department.values) {
-      departmentCounts[department] = students.where((s) => s.department == department).length;
-    }
+        if (snapshot.hasError) {
+          return Center(child: Text('Ошибка загрузки данных: ${snapshot.error}'));
+        }
 
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 8.0,
-          mainAxisSpacing: 8.0,
-        ),
-        itemCount: Department.values.length,
-        itemBuilder: (context, index) {
-          final department = Department.values[index];
-          return Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.blueAccent.withOpacity(0.7),
-                  Colors.blueAccent,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12.0),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  department.toString().split('.').last,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'Students: ${departmentCounts[department] ?? 0}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(child: Text('Нет данных о студентах'));
+        }
+
+        final students = snapshot.data!.docs;
+
+        // Подсчет количества студентов по специальностям
+        final Map<String, int> departmentCounts = {};
+
+        for (var student in students) {
+          // Приведение данных к Map<String, dynamic>
+          final data = student.data() as Map<String, dynamic>?;
+
+          // Проверяем наличие и корректность поля 'department'
+          final departmentName = data?['department'];
+          if (departmentName is String && departmentName.isNotEmpty) {
+            departmentCounts[departmentName] =
+                (departmentCounts[departmentName] ?? 0) + 1;
+          }
+        }
+
+        if (departmentCounts.isEmpty) {
+          return Center(child: Text('Нет данных о специальностях студентов'));
+        }
+
+        // Сортировка специальностей по алфавиту
+        final sortedDepartments = departmentCounts.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key));
+
+        return ListView.builder(
+          itemCount: sortedDepartments.length,
+          itemBuilder: (ctx, index) {
+            final entry = sortedDepartments[index];
+            return ListTile(
+              title: Text(entry.key), // Название специальности
+              trailing: Text('${entry.value} студентов'), // Количество студентов
+            );
+          },
+        );
+      },
     );
   }
 }

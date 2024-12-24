@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../model/student.dart';
 import '../widget/students.dart';
 import 'departments_screen.dart';
-import '../model/student.dart';
 
 class TabsScreen extends StatefulWidget {
   @override
@@ -10,28 +11,46 @@ class TabsScreen extends StatefulWidget {
 
 class _TabsScreenState extends State<TabsScreen> {
   int _selectedPageIndex = 0;
+  bool _isLoading = false;
 
-  final List<Student> students = [
-    Student(
-      firstName: 'John',
-      lastName: 'Doe',
-      department: Department.it,
-      grade: 85.0,
-      gender: Gender.male,
-    ),
-    Student(
-      firstName: 'Jane',
-      lastName: 'Smith',
-      department: Department.finance,
-      grade: 90.0,
-      gender: Gender.female,
-    ),
-  ];
+  void _addStudent(Student newStudent) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      await FirebaseFirestore.instance.collection('students').add({
+        'firstName': newStudent.firstName,
+        'lastName': newStudent.lastName,
+        'department': newStudent.department.name,
+        'grade': newStudent.grade,
+        'gender': newStudent.gender.name,
+      });
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding student: $error')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
-  void _addStudent(Student newStudent) {
-    setState(() {
-      students.add(newStudent);
-    });
+  void _deleteStudent(String id) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      await FirebaseFirestore.instance.collection('students').doc(id).delete();
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting student: $error')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _selectPage(int index) {
@@ -44,11 +63,15 @@ class _TabsScreenState extends State<TabsScreen> {
   Widget build(BuildContext context) {
     final List<Map<String, Object>> _pages = [
       {
-        'page': StudentsScreen(students: students, onAddStudent: _addStudent),
+        'page': StudentsScreen(
+          onAddStudent: _addStudent,
+          onDeleteStudent: _deleteStudent,
+          departmentIcons: departmentIcons, // Передача иконок в экран студентов
+        ),
         'title': 'Students',
       },
       {
-        'page': DepartmentsScreen(students: students),
+        'page': DepartmentsScreen(),
         'title': 'Departments',
       },
     ];
@@ -57,7 +80,9 @@ class _TabsScreenState extends State<TabsScreen> {
       appBar: AppBar(
         title: Text(_pages[_selectedPageIndex]['title'] as String),
       ),
-      body: _pages[_selectedPageIndex]['page'] as Widget,
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : _pages[_selectedPageIndex]['page'] as Widget,
       bottomNavigationBar: BottomNavigationBar(
         onTap: _selectPage,
         currentIndex: _selectedPageIndex,
